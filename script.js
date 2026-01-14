@@ -12,7 +12,7 @@ const includeHeader = document.getElementById("includeHeader");
 
 let csvText = "";
 
-// ---------- helpers ----------
+// ---------------- helpers ----------------
 function setMessage(text, isError = false) {
   msg.textContent = text || "";
   msg.classList.toggle("error", isError);
@@ -28,18 +28,35 @@ function reset() {
   setMessage("");
 }
 
-// ---------- drag & drop ----------
+// ---------------- drag & drop (FULL FIX) ----------------
 dropzone.addEventListener("click", () => {
   fileInput.value = "";
   fileInput.click();
 });
 
-["dragover", "drop"].forEach(evt =>
-  dropzone.addEventListener(evt, e => e.preventDefault())
-);
+dropzone.addEventListener("dragenter", e => {
+  e.preventDefault();
+  e.stopPropagation();
+  dropzone.classList.add("dragover");
+});
+
+dropzone.addEventListener("dragover", e => {
+  e.preventDefault();
+  e.stopPropagation();
+});
+
+dropzone.addEventListener("dragleave", e => {
+  e.preventDefault();
+  e.stopPropagation();
+  dropzone.classList.remove("dragover");
+});
 
 dropzone.addEventListener("drop", e => {
-  const file = e.dataTransfer.files[0];
+  e.preventDefault();
+  e.stopPropagation();
+  dropzone.classList.remove("dragover");
+
+  const file = e.dataTransfer.files && e.dataTransfer.files[0];
   if (!file || !file.name.toLowerCase().endsWith(".csv")) {
     setMessage("CSV files only.", true);
     return;
@@ -48,7 +65,7 @@ dropzone.addEventListener("drop", e => {
 });
 
 fileInput.addEventListener("change", e => {
-  const file = e.target.files[0];
+  const file = e.target.files && e.target.files[0];
   if (!file || !file.name.toLowerCase().endsWith(".csv")) {
     setMessage("CSV files only.", true);
     return;
@@ -58,29 +75,30 @@ fileInput.addEventListener("change", e => {
 
 clearBtn.addEventListener("click", reset);
 
-// ---------- load CSV ----------
+// ---------------- load CSV ----------------
 function loadCSV(file) {
   const reader = new FileReader();
   reader.onload = () => {
     csvText = reader.result;
     fileLabel.textContent = `Selected: ${file.name}`;
     generateBtn.disabled = false;
+    copyBtn.disabled = true;
     setMessage("");
   };
   reader.readAsText(file);
 }
 
-// ---------- CSV parsing ----------
+// ---------------- CSV parsing ----------------
 function parseCSV(text) {
   const rows = [];
   const regex = /("([^"]|"")*"|[^,\n]+)(?=,|\n|$)/g;
-  let match, row = [];
 
   for (const line of text.split(/\r?\n/)) {
     if (!line.trim()) continue;
-    row = [];
+    const row = [];
+    let match;
     while ((match = regex.exec(line))) {
-      row.push(match[1]?.replace(/^"|"$/g, "").trim());
+      row.push(match[1].replace(/^"|"$/g, "").trim());
     }
     rows.push(row);
   }
@@ -97,7 +115,7 @@ function explode(detail, forma) {
   }));
 }
 
-// ---------- generate ----------
+// ---------------- generate ----------------
 generateBtn.addEventListener("click", () => {
   if (!csvText) return;
 
@@ -130,7 +148,11 @@ generateBtn.addEventListener("click", () => {
 
     const factura = String(parseInt(r[idx("FACTURA")], 10));
     const beneficiario = r[idx("NOMBRE DEL CLIENTE")];
-    const fecha = r[idx("FECHA")].split(" ")[0].split("-").reverse().join("/");
+    const fecha = r[idx("FECHA")]
+      .split(" ")[0]
+      .split("-")
+      .reverse()
+      .join("/");
 
     explode(r[idx("DETALLE TRANSFERENCIA")], "transferencia")
       .forEach(e => rows.push([factura, beneficiario, fecha, e.forma, e.banco, e.monto]));
@@ -152,7 +174,7 @@ generateBtn.addEventListener("click", () => {
   setMessage(`Done. Rows generated: ${rows.length}`);
 });
 
-// ---------- copy ----------
+// ---------------- copy ----------------
 copyBtn.addEventListener("click", async () => {
   await navigator.clipboard.writeText(output.value);
   setMessage("Copied to clipboard ✅");

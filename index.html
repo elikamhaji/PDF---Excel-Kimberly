@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PDF → Excel Table (Facturas)</title>
+  <link rel="stylesheet" href="./style.css" />
+  <!-- PDF.js (CDN) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+</head>
+<body>
+  <main class="wrap">
+    <header class="header">
+      <h1>PDF → Excel table</h1>
+      <p class="sub">Drop a PDF, click Generate, then Copy → paste into Excel.</p>
+    </header>
+
+    <section class="card">
+      <div id="dropzone" class="dropzone" role="button" tabindex="0" aria-label="Drop PDF here">
+        <div class="dz-title">Drag & drop your PDF here</div>
+        <div class="dz-sub">or click to choose a file</div>
+        <input id="fileInput" type="file" accept="application/pdf" hidden />
+      </div>
+
+      <div class="controls">
+        <div class="left">
+          <label class="toggle">
+            <span>Output:</span>
+            <select id="modeSelect">
+              <option value="auto" selected>Auto classify (transfer/cheque)</option>
+              <option value="cheque">Force all as cheque</option>
+              <option value="transferencia">Force all as transferencia</option>
+            </select>
+          </label>
+
+          <label class="toggle">
+            <input id="includeHeader" type="checkbox" checked />
+            <span>Include header row</span>
+          </label>
+        </div>
+
+        <div class="right">
+          <button id="generateBtn" class="btn primary" disabled>Generate</button>
+          <button id="copyBtn" class="btn" disabled>Copy to clipboard</button>
+          <button id="clearBtn" class="btn ghost">Clear</button>
+        </div>
+      </div>
+
+      <div class="status">
+        <div id="fileLabel" class="fileLabel">No PDF selected</div>
+        <div id="msg" class="msg"></div>
+      </div>
+
+      <textarea id="output" class="output" placeholder="Your tab-separated table will appear here..." spellcheck="false"></textarea>
+
+      <details class="tips">
+        <summary>Tips / Notes</summary>
+        <ul>
+          <li>Paste into Excel starting at cell A1. Columns are separated by tabs.</li>
+          <li><b># factura</b> is exported with <b>leading zeros removed</b>.</li>
+          <li>Auto mode uses heuristics. If your PDFs vary, you can “Force all as cheque/transferencia”.</li>
+        </ul>
+      </details>
+    </section>
+
+    <footer class="footer">
+      <span>Simple. Fast. No drama. ✨</span>
+    </footer>
+  </main>
+
+  <script src="./script.js"></script>
+</body>
+</html>

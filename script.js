@@ -11,6 +11,7 @@ const output = document.getElementById("output");
 const includeHeader = document.getElementById("includeHeader");
 
 let csvText = "";
+let dragCounter = 0;
 
 // ---------------- helpers ----------------
 function setMessage(text, isError = false) {
@@ -28,7 +29,7 @@ function reset() {
   setMessage("");
 }
 
-// ---------------- drag & drop (FULL FIX) ----------------
+// ---------------- drag & drop (STABLE) ----------------
 dropzone.addEventListener("click", () => {
   fileInput.value = "";
   fileInput.click();
@@ -37,6 +38,7 @@ dropzone.addEventListener("click", () => {
 dropzone.addEventListener("dragenter", e => {
   e.preventDefault();
   e.stopPropagation();
+  dragCounter++;
   dropzone.classList.add("dragover");
 });
 
@@ -48,12 +50,16 @@ dropzone.addEventListener("dragover", e => {
 dropzone.addEventListener("dragleave", e => {
   e.preventDefault();
   e.stopPropagation();
-  dropzone.classList.remove("dragover");
+  dragCounter--;
+  if (dragCounter === 0) {
+    dropzone.classList.remove("dragover");
+  }
 });
 
 dropzone.addEventListener("drop", e => {
   e.preventDefault();
   e.stopPropagation();
+  dragCounter = 0;
   dropzone.classList.remove("dragover");
 
   const file = e.dataTransfer.files && e.dataTransfer.files[0];

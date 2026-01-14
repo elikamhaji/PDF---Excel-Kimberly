@@ -152,22 +152,24 @@ function parseReport(text, mode = "auto") {
     if (!rawFactura) continue;
     const factura = stripLeadingZerosFactura(rawFactura);
 
-    const dateIso = (block.match(/\b20\d{2}-\d{2}-\d{2}\b/) || [""])[0];
-    const fecha = dateIso ? yyyyMmDdToDdMmYyyy(dateIso) : "";
+  // --- FECHA ---
+const dateMatch = block.match(/\b20\d{2}-\d{2}-\d{2}\b/);
+const fecha = dateMatch ? yyyyMmDdToDdMmYyyy(dateMatch[0]) : "";
 
-    // Beneficiario (best-effort, but works well on this report)
-    let beneficiario = "";
-    if (dateIso) {
-      const pre = block.split(dateIso)[0];
-      beneficiario = pre
-        .replace(rawFactura, "")
-        .replace(/Cliente\s+(Ocasional|Frecuente)/gi, " ")
-        .replace(/\bE-\d+-\d+\b/gi, " ")
-        .replace(/\b\d{4,}\b/g, " ") // IDs often numeric; keep it simple
-        .replace(/FACTURA|TIPO|CLIENTE\/STATUS|NOMBRE|DEL|CLIENTE|IDENTIFICACIÓN|FECHA|CREADO|POR/gi, " ")
-        .replace(/\b(Meir|koby|kami|k|Kimberly|Sanchez)\b/gi, " ")
-        .replace(/\s+/g, " ")
-        .trim();
+// --- BENEFICIARIO ---
+// Extract text after "Cliente Ocasional/Frecuente" up to the next column break
+let beneficiario = "";
+
+const nameMatch = block.match(
+  /Cliente\s+(?:Ocasional|Frecuente)\s+([A-Za-zÁÉÍÓÚÑáéíóúñ\s]+?)\s+(?:E-|[0-9]{5,}|20\d{2}-\d{2}-\d{2})/i
+);
+
+if (nameMatch) {
+  beneficiario = nameMatch[1]
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
     }
 
     const bankMatches = [...block.matchAll(bankRegex)];

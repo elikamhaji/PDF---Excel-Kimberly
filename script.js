@@ -12,7 +12,7 @@ const includeHeader = document.getElementById("includeHeader");
 
 let csvText = "";
 
-// ---------------- UI HELPERS ----------------
+// ---------- helpers ----------
 function setMessage(text, isError = false) {
   msg.textContent = text || "";
   msg.classList.toggle("error", isError);
@@ -28,27 +28,19 @@ function reset() {
   setMessage("");
 }
 
-// ---------------- DROPZONE ----------------
+// ---------- drag & drop ----------
 dropzone.addEventListener("click", () => {
   fileInput.value = "";
   fileInput.click();
 });
 
-dropzone.addEventListener("dragover", e => {
-  e.preventDefault();
-  dropzone.classList.add("dragover");
-});
-
-dropzone.addEventListener("dragleave", () => {
-  dropzone.classList.remove("dragover");
-});
+["dragover", "drop"].forEach(evt =>
+  dropzone.addEventListener(evt, e => e.preventDefault())
+);
 
 dropzone.addEventListener("drop", e => {
-  e.preventDefault();
-  dropzone.classList.remove("dragover");
-
   const file = e.dataTransfer.files[0];
-  if (!file || !file.name.endsWith(".csv")) {
+  if (!file || !file.name.toLowerCase().endsWith(".csv")) {
     setMessage("CSV files only.", true);
     return;
   }
@@ -57,7 +49,7 @@ dropzone.addEventListener("drop", e => {
 
 fileInput.addEventListener("change", e => {
   const file = e.target.files[0];
-  if (!file || !file.name.endsWith(".csv")) {
+  if (!file || !file.name.toLowerCase().endsWith(".csv")) {
     setMessage("CSV files only.", true);
     return;
   }
@@ -66,7 +58,7 @@ fileInput.addEventListener("change", e => {
 
 clearBtn.addEventListener("click", reset);
 
-// ---------------- CSV LOADING ----------------
+// ---------- load CSV ----------
 function loadCSV(file) {
   const reader = new FileReader();
   reader.onload = () => {
@@ -78,41 +70,72 @@ function loadCSV(file) {
   reader.readAsText(file);
 }
 
-// ---------------- CORE LOGIC ----------------
-function explodeDetails(detail, forma) {
+// ---------- CSV parsing ----------
+function parseCSV(text) {
+  const rows = [];
+  const regex = /("([^"]|"")*"|[^,\n]+)(?=,|\n|$)/g;
+  let match, row = [];
+
+  for (const line of text.split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    row = [];
+    while ((match = regex.exec(line))) {
+      row.push(match[1]?.replace(/^"|"$/g, "").trim());
+    }
+    rows.push(row);
+  }
+  return rows;
+}
+
+function explode(detail, forma) {
   if (!detail) return [];
-  const regex = /([A-Za-zÁÉÍÓÚÑáéíóúñ ]+?)\s*--\s*\((\d+\.\d{2})\)/g;
-  return [...detail.matchAll(regex)].map(m => ({
+  const rx = /([A-Za-zÁÉÍÓÚÑáéíóúñ ]+?)\s*--\s*\((\d+\.\d{2})\)/g;
+  return [...detail.matchAll(rx)].map(m => ({
     forma,
     banco: m[1].trim(),
     monto: m[2]
   }));
 }
 
+// ---------- generate ----------
 generateBtn.addEventListener("click", () => {
   if (!csvText) return;
 
-  const lines = csvText.split("\n").filter(l => l.trim());
-  const headers = lines[0].split(",");
-  const data = lines.slice(1);
+  const table = parseCSV(csvText);
+  if (table.length < 2) {
+    setMessage("CSV appears empty.", true);
+    return;
+  }
 
+  const headers = table[0].map(h => h.trim().toUpperCase());
   const idx = name => headers.indexOf(name);
+
+  const required = [
+    "FACTURA",
+    "NOMBRE DEL CLIENTE",
+    "FECHA",
+    "DETALLE TRANSFERENCIA",
+    "DETALLE CHEQUE"
+  ];
+
+  if (!required.every(r => idx(r) !== -1)) {
+    setMessage("CSV headers not recognized.", true);
+    return;
+  }
 
   const rows = [];
 
-  for (const line of data) {
-    const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+  for (const r of table.slice(1)) {
+    if (!r[idx("FACTURA")]) continue;
 
-    if (!cols[idx("FACTURA")]) continue;
+    const factura = String(parseInt(r[idx("FACTURA")], 10));
+    const beneficiario = r[idx("NOMBRE DEL CLIENTE")];
+    const fecha = r[idx("FECHA")].split(" ")[0].split("-").reverse().join("/");
 
-    const factura = String(parseInt(cols[idx("FACTURA")], 10));
-    const beneficiario = cols[idx("NOMBRE DEL CLIENTE")];
-    const fecha = cols[idx("FECHA")].split(" ")[0].split("-").reverse().join("/");
-
-    explodeDetails(cols[idx("DETALLE TRANSFERENCIA")], "transferencia")
+    explode(r[idx("DETALLE TRANSFERENCIA")], "transferencia")
       .forEach(e => rows.push([factura, beneficiario, fecha, e.forma, e.banco, e.monto]));
 
-    explodeDetails(cols[idx("DETALLE CHEQUE")], "cheque")
+    explode(r[idx("DETALLE CHEQUE")], "cheque")
       .forEach(e => rows.push([factura, beneficiario, fecha, e.forma, e.banco, e.monto]));
   }
 
@@ -129,7 +152,7 @@ generateBtn.addEventListener("click", () => {
   setMessage(`Done. Rows generated: ${rows.length}`);
 });
 
-// ---------------- COPY ----------------
+// ---------- copy ----------
 copyBtn.addEventListener("click", async () => {
   await navigator.clipboard.writeText(output.value);
   setMessage("Copied to clipboard ✅");
